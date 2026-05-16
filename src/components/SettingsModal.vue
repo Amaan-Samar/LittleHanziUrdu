@@ -1,554 +1,353 @@
 <template>
-  <Teleport to="body">
-    <div v-if="isOpen" class="settings-modal-overlay" @click="handleOverlayClick">
-      <div class="settings-modal" :class="{ 'mobile': isMobile }" @click.stop>
-        <div class="settings-modal-header">
-          <h2>Settings</h2>
-          <button class="close-btn" @click="close">
-            <X :size="24" />
-          </button>
-        </div>
-
-        <div class="settings-modal-body">
-          <!-- Font Size - Updates instantly as you slide -->
-          <div class="setting-group">
-            <label class="setting-label">Font Size</label>
-            <div class="font-size-control">
-              <input 
-                type="range" 
-                v-model="localSettings.fontSize" 
-                min="12" 
-                max="32" 
-                step="1" 
-                class="size-slider"
-                @input="handleFontSizeChange"
-              />
-              <span class="size-value">{{ localSettings.fontSize }}px</span>
-            </div>
+  <div v-if="isOpen" class="modal-overlay" @click="closeModal">
+    <div class="modal-container" @click.stop>
+      <div class="modal-header">
+        <h3>Settings</h3>
+        <button class="close-btn" @click="closeModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-group">
+          <label class="settings-label">Display Options</label>
+          
+          <div class="setting-item">
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="localSettings.showRomanization">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="setting-name">Show Romanization</span>
           </div>
-
-          <!-- Font Family - Updates instantly when clicked -->
-          <div class="setting-group">
-            <label class="setting-label">Font Family</label>
-            <div class="font-options-grid">
-              <button
-                v-for="font in fontOptions"
-                :key="font.value"
-                class="font-option"
-                :class="{ active: localSettings.selectedFont === font.value }"
-                :style="{ fontFamily: font.fontFamily }"
-                @click="handleFontChange(font.value)"
-              >
-                {{ font.label }}
-              </button>
-            </div>
+          
+          <div class="setting-item">
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="localSettings.showOriginalText">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="setting-name">Show Original Urdu Text</span>
           </div>
-
-          <!-- Display Sections - Updates instantly when toggled -->
-          <div class="setting-group">
-            <label class="setting-label">Display Sections</label>
-            <div class="toggle-group">
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showPinyin" @change="handleShowPinyinChange">
-                <span>Show Pinyin</span>
-              </label>
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showChinese" @change="handleShowChineseChange">
-                <span>Show Chinese</span>
-              </label>
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showEnglish" @change="handleShowEnglishChange">
-                <span>Show English</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Display Order - Updates instantly when changed -->
-          <div class="setting-group">
-            <label class="setting-label">Display Order</label>
-            <div class="radio-group">
-              <label class="radio-item">
-                <input type="radio" v-model="localSettings.displayOrder" value="en-cn" @change="handleDisplayOrderChange">
-                <span>English → Chinese</span>
-              </label>
-              <label class="radio-item">
-                <input type="radio" v-model="localSettings.displayOrder" value="cn-en" @change="handleDisplayOrderChange">
-                <span>Chinese → English</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Interleave Lines - Updates instantly when toggled -->
-          <div class="setting-group">
-            <label class="setting-label">Layout Mode</label>
-            <div class="toggle-group">
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.interleaveLines" @change="handleInterleaveChange">
-                <span>Interleave Lines (Alternating Chinese/English lines)</span>
-              </label>
-              <p class="setting-description">
-                When enabled, Chinese and English will alternate line by line for easier parallel reading.
-              </p>
-            </div>
+          
+          <div class="setting-item">
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="localSettings.showEnglishTranslation">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="setting-name">Show English Translation</span>
           </div>
         </div>
 
-        <div class="settings-modal-footer">
-          <button class="reset-btn" @click="resetToDefaults">
-            Reset to Defaults
-          </button>
-          <div class="action-buttons">
-            <button class="close-btn-bottom" @click="close">
-              Close
-            </button>
+        <div class="settings-group">
+          <label class="settings-label">Display Order</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" value="ur-en" v-model="localSettings.displayOrder">
+              <span>Urdu First</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" value="en-ur" v-model="localSettings.displayOrder">
+              <span>English First</span>
+            </label>
           </div>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Layout</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" :value="false" v-model="localSettings.interleaveLines">
+              <span>Paragraph by Paragraph</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" :value="true" v-model="localSettings.interleaveLines">
+              <span>Interleave Lines</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Font Size: {{ localSettings.fontSize }}px</label>
+          <input 
+            type="range" 
+            v-model="localSettings.fontSize" 
+            min="12" 
+            max="32" 
+            step="1"
+            class="font-slider"
+          >
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Urdu Font</label>
+          <select v-model="localSettings.selectedFont" class="font-select">
+            <option value="NotoNastaliqUrdu">Noto Nastaliq Urdu</option>
+            <option value="JameelNoori">Jameel Noori Nastaleeq</option>
+            <option value="NafeesWeb">Nafees Web</option>
+            <option value="Arial">Arial</option>
+          </select>
         </div>
       </div>
+      <div class="modal-footer">
+        <button class="reset-btn" @click="resetSettings">Reset to Defaults</button>
+        <button class="cancel-btn" @click="closeModal">Cancel</button>
+        <button class="save-btn" @click="saveSettings">Save</button>
+      </div>
     </div>
-  </Teleport>
+  </div>
 </template>
 
-<script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { X } from 'lucide-vue-next'
+<script>
+import { ref, watch } from 'vue';
 
-const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
+export default {
+  name: 'SettingsModal',
+  props: {
+    isOpen: {
+      type: Boolean,
+      default: false
+    },
+    settings: {
+      type: Object,
+      required: true
+    }
   },
-  settings: {
-    type: Object,
-    required: true
+  emits: ['close', 'save', 'reset'],
+  setup(props, { emit }) {
+    const localSettings = ref({ ...props.settings });
+
+    watch(() => props.settings, (newSettings) => {
+      localSettings.value = { ...newSettings };
+    }, { deep: true });
+
+    const closeModal = () => {
+      emit('close');
+    };
+
+    const saveSettings = () => {
+      emit('save', localSettings.value);
+    };
+
+    const resetSettings = () => {
+      emit('reset');
+    };
+
+    return {
+      localSettings,
+      closeModal,
+      saveSettings,
+      resetSettings
+    };
   }
-})
-
-const emit = defineEmits(['close', 'save', 'reset'])
-
-// Local reactive copy of settings
-const localSettings = ref({ 
-  fontSize: 15,
-  selectedFont: 'NotoSansSC',
-  showPinyin: true,
-  showChinese: true,
-  showEnglish: true,
-  displayOrder: 'en-cn',
-  interleaveLines: false,
-  ...props.settings 
-})
-
-const isMobile = ref(false)
-
-const fontOptions = [
-  { value: 'NotoSansSC', label: 'Noto Sans SC', fontFamily: "'Noto Sans SC', sans-serif" },
-  { value: 'NotoSerifSC', label: 'Noto Serif SC', fontFamily: "'Noto Serif SC', serif" },
-  { value: 'Inter', label: 'Inter', fontFamily: "'Inter', sans-serif" },
-  { value: 'Roboto', label: 'Roboto', fontFamily: "'Roboto', sans-serif" },
-  { value: 'Poppins', label: 'Poppins', fontFamily: "'Poppins', sans-serif" },
-  { value: 'ZCOOLKuaiLe', label: 'ZCOOL KuaiLe', fontFamily: "'ZCOOL KuaiLe', cursive" },
-  { value: 'MaShanZheng', label: 'Ma Shan Zheng', fontFamily: "'Ma Shan Zheng', cursive" }
-]
-
-// Debounced font size update to prevent too many emits while sliding
-let fontSizeTimeout = null
-const handleFontSizeChange = () => {
-  if (fontSizeTimeout) clearTimeout(fontSizeTimeout)
-  fontSizeTimeout = setTimeout(() => {
-    emit('save', localSettings.value)
-  }, 50)
-}
-
-// Instant updates for other settings
-const handleFontChange = (fontValue) => {
-  localSettings.value.selectedFont = fontValue
-  emit('save', localSettings.value)
-}
-
-const handleShowPinyinChange = () => {
-  emit('save', localSettings.value)
-}
-
-const handleShowChineseChange = () => {
-  emit('save', localSettings.value)
-}
-
-const handleShowEnglishChange = () => {
-  emit('save', localSettings.value)
-}
-
-const handleDisplayOrderChange = () => {
-  emit('save', localSettings.value)
-}
-
-const handleInterleaveChange = () => {
-  emit('save', localSettings.value)
-}
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
-}
-
-const handleOverlayClick = () => {
-  close()
-}
-
-const close = () => {
-  emit('close')
-}
-
-const resetToDefaults = () => {
-  const defaults = {
-    fontSize: 15,
-    selectedFont: 'NotoSansSC',
-    showPinyin: true,
-    showChinese: true,
-    showEnglish: true,
-    displayOrder: 'en-cn',
-    interleaveLines: false
-  }
-  localSettings.value = { ...defaults }
-  emit('reset')
-  emit('save', localSettings.value) // Save immediately on reset
-}
-
-// Handle escape key
-const handleEscape = (e) => {
-  if (e.key === 'Escape' && props.isOpen) {
-    close()
-  }
-}
-
-// Reset local settings when modal opens with new props
-watch(() => props.isOpen, (newVal) => {
-  if (newVal) {
-    localSettings.value = { ...props.settings }
-  }
-})
-
-watch(() => props.settings, (newVal) => {
-  if (props.isOpen) {
-    localSettings.value = { ...newVal }
-  }
-}, { deep: true })
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-  document.addEventListener('keydown', handleEscape)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkMobile)
-  document.removeEventListener('keydown', handleEscape)
-  if (fontSizeTimeout) clearTimeout(fontSizeTimeout)
-})
+};
 </script>
 
 <style scoped>
-.settings-modal-overlay {
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.2s ease;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.settings-modal {
+.modal-container {
   background: white;
-  border-radius: 24px;
+  border-radius: 16px;
   width: 90%;
-  max-width: 550px;
-  max-height: 85vh;
+  max-width: 500px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.settings-modal.mobile {
-  width: 95%;
-  max-height: 90vh;
-  border-radius: 20px;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.settings-modal-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid #e9ecef;
 }
 
-.settings-modal-header h2 {
+.modal-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  color: #2c3e50;
 }
 
 .close-btn {
-  background: transparent;
+  background: none;
   border: none;
+  font-size: 24px;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
+  color: #6c757d;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
   transition: all 0.2s;
-  color: #868e96;
 }
 
 .close-btn:hover {
   background: #f8f9fa;
-  color: #2c3e50;
 }
 
-.settings-modal-body {
-  flex: 1;
-  overflow-y: auto;
+.modal-body {
   padding: 24px;
+  overflow-y: auto;
 }
 
-.setting-group {
-  margin-bottom: 32px;
+.settings-group {
+  margin-bottom: 24px;
 }
 
-.setting-group:last-child {
-  margin-bottom: 0;
-}
-
-.setting-label {
+.settings-label {
   display: block;
-  font-size: 14px;
   font-weight: 600;
-  color: #495057;
-  margin-bottom: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.setting-description {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #6c757d;
-  line-height: 1.4;
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.size-slider {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: #e9ecef;
-  cursor: pointer;
-  -webkit-appearance: none;
-}
-
-.size-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #4a6cf7;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.size-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.size-value {
+  margin-bottom: 12px;
+  color: #1a1a1a;
   font-size: 14px;
-  font-weight: 600;
-  color: #4a6cf7;
-  min-width: 45px;
-  text-align: center;
 }
 
-.font-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.font-option {
-  padding: 10px 16px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-}
-
-.font-option:hover {
-  background: #e9ecef;
-  border-color: #4a6cf7;
-}
-
-.font-option.active {
-  background: #4a6cf7;
-  border-color: #4a6cf7;
-  color: white;
-}
-
-.toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.toggle-item {
+.setting-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
-  font-size: 15px;
-  color: #495057;
+  margin-bottom: 12px;
 }
 
-.toggle-item input {
-  width: 18px;
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
   height: 18px;
-  cursor: pointer;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
 }
 
-.toggle-item span {
-  cursor: pointer;
+input:checked + .toggle-slider {
+  background-color: #4a6cf7;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.setting-name {
+  font-size: 14px;
+  color: #495057;
 }
 
 .radio-group {
   display: flex;
-  gap: 24px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .radio-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   color: #495057;
-}
-
-.radio-item input {
-  width: 18px;
-  height: 18px;
   cursor: pointer;
 }
 
-.radio-item span {
+.font-slider {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.font-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
   cursor: pointer;
 }
 
-.settings-modal-footer {
-  padding: 20px 24px;
-  border-top: 1px solid #e9ecef;
+.modal-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.action-buttons {
-  display: flex;
+  justify-content: flex-end;
   gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e9ecef;
+}
+
+.reset-btn,
+.cancel-btn,
+.save-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .reset-btn {
-  padding: 10px 20px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
+  background: none;
+  border: 1px solid #dc2626;
   color: #dc2626;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  margin-right: auto;
 }
 
 .reset-btn:hover {
-  background: #fecaca;
-  transform: translateY(-1px);
+  background: #fee2e2;
 }
 
-.close-btn-bottom {
-  padding: 10px 24px;
+.cancel-btn {
+  background: white;
+  border: 1px solid #dee2e6;
+  color: #495057;
+}
+
+.cancel-btn:hover {
+  background: #f8f9fa;
+}
+
+.save-btn {
   background: #4a6cf7;
   border: none;
-  border-radius: 10px;
   color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
-.close-btn-bottom:hover {
-  background: #3a5ce8;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
-}
-
-@media (max-width: 768px) {
-  .settings-modal-header {
-    padding: 16px 20px;
-  }
-  
-  .settings-modal-body {
-    padding: 20px;
-  }
-  
-  .settings-modal-footer {
-    padding: 16px 20px;
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    width: 100%;
-  }
-  
-  .reset-btn,
-  .close-btn-bottom {
-    width: 100%;
-  }
-  
-  .font-options-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .radio-group {
-    flex-direction: column;
-    gap: 12px;
-  }
+.save-btn:hover {
+  background: #3a5ce0;
 }
 </style>

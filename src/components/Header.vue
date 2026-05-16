@@ -1,10 +1,10 @@
-<template>
+<!-- <template>
   <header class="header">
     <nav class="nav-container">
       <div class="logo_wrapper">
         <RouterLink to="/" class="logo">
           <img class="logo_img"
-            src="/pen.svg"
+            src="/urdu_icon.png"
             alt="Company Logo"
           />
           <span 
@@ -112,4 +112,4 @@ defineEmits(['open-settings'])
     display: flex;
   }
 }
-</style>
+</style> -->

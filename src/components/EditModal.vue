@@ -1,285 +1,238 @@
 <template>
-  <Teleport to="body">
-    <div v-if="isOpen" class="edit-modal-overlay" @click="handleOverlayClick">
-      <div class="edit-modal" :class="{ 'mobile': isMobile }" @click.stop>
-        <div class="edit-modal-header">
-          <h3>Edit {{ title }}</h3>
-          <button class="close-btn" @click="close">×</button>
-        </div>
-        <div class="edit-modal-body">
-          <textarea
-            ref="textareaRef"
-            v-model="editText"
-            :placeholder="`Edit ${title} text...`"
-            class="edit-textarea"
-            :style="{ fontSize: `${fontSize}px`, fontFamily: fontFamily }"
-          ></textarea>
-        </div>
-        <div class="edit-modal-footer">
-          <button class="cancel-btn" @click="close">Cancel</button>
-          <button class="save-btn" @click="save">Save Changes</button>
-        </div>
+  <div v-if="isOpen" class="modal-overlay" @click="closeModal">
+    <div class="modal-container" @click.stop>
+      <div class="modal-header">
+        <h3>{{ title }}</h3>
+        <button class="close-btn" @click="closeModal">×</button>
+      </div>
+      <div class="modal-body">
+        <textarea
+          ref="modalTextarea"
+          v-model="editedContent"
+          :style="{
+            fontSize: `${fontSize}px`,
+            fontFamily: fontFamily
+          }"
+          :dir="isRtl ? 'rtl' : 'ltr'"
+          class="modal-textarea"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" @click="closeModal">Cancel</button>
+        <button class="save-btn" @click="saveContent">Save</button>
       </div>
     </div>
-  </Teleport>
+  </div>
 </template>
 
-<script setup>
-import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+<script>
+import { ref, watch, nextTick } from 'vue';
 
-const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
-  },
-  title: {
-    type: String,
-    required: true
-  },
-  content: {
-    type: String,
-    default: ''
-  },
-  fontSize: {
-    type: Number,
-    default: 15
-  },
-  fontFamily: {
-    type: String,
-    default: "'Noto Sans SC', sans-serif"
-  }
-})
-
-const emit = defineEmits(['close', 'save'])
-
-const editText = ref(props.content)
-const textareaRef = ref(null)
-const isMobile = ref(false)
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
-}
-
-const handleOverlayClick = () => {
-  close()
-}
-
-const close = () => {
-  emit('close')
-}
-
-const save = () => {
-  emit('save', editText.value)
-  close()
-}
-
-// Handle escape key
-const handleEscape = (e) => {
-  if (e.key === 'Escape' && props.isOpen) {
-    close()
-  }
-}
-
-// Auto-focus textarea when opened
-watch(() => props.isOpen, async (newVal) => {
-  if (newVal) {
-    editText.value = props.content
-    await nextTick()
-    if (textareaRef.value) {
-      textareaRef.value.focus()
+export default {
+  name: 'EditModal',
+  props: {
+    isOpen: {
+      type: Boolean,
+      default: false
+    },
+    title: {
+      type: String,
+      default: 'Edit Text'
+    },
+    content: {
+      type: String,
+      default: ''
+    },
+    fontSize: {
+      type: Number,
+      default: 16
+    },
+    fontFamily: {
+      type: String,
+      default: 'inherit'
+    },
+    isRtl: {
+      type: Boolean,
+      default: false
     }
+  },
+  emits: ['close', 'save'],
+  setup(props, { emit }) {
+    const editedContent = ref(props.content);
+    const modalTextarea = ref(null);
+
+    watch(() => props.content, (newContent) => {
+      editedContent.value = newContent;
+    });
+
+    watch(() => props.isOpen, (isOpen) => {
+      if (isOpen) {
+        editedContent.value = props.content;
+        nextTick(() => {
+          if (modalTextarea.value) {
+            modalTextarea.value.focus();
+          }
+        });
+      }
+    });
+
+    const closeModal = () => {
+      emit('close');
+    };
+
+    const saveContent = () => {
+      emit('save', editedContent.value);
+    };
+
+    return {
+      editedContent,
+      modalTextarea,
+      closeModal,
+      saveContent
+    };
   }
-})
-
-// Update editText when content prop changes
-watch(() => props.content, (newVal) => {
-  if (props.isOpen) {
-    editText.value = newVal
-  }
-})
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-  document.addEventListener('keydown', handleEscape)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkMobile)
-  document.removeEventListener('keydown', handleEscape)
-})
+};
 </script>
 
 <style scoped>
-.edit-modal-overlay {
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 3000;
-  animation: fadeIn 0.2s ease;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.edit-modal {
+.modal-container {
   background: white;
-  border-radius: 20px;
+  border-radius: 16px;
   width: 90%;
-  max-width: 700px;
-  height: 70vh;
-  max-height: 600px;
+  max-width: 800px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-.edit-modal.mobile {
-  width: 95%;
-  height: 80vh;
-  border-radius: 16px;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.edit-modal-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid #e9ecef;
 }
 
-.edit-modal-header h3 {
+.modal-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #2c3e50;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: 24px;
   cursor: pointer;
-  color: #999;
-  transition: color 0.2s;
-  width: 36px;
-  height: 36px;
+  color: #6c757d;
+  padding: 0;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .close-btn:hover {
   background: #f8f9fa;
-  color: #333;
+  color: #1a1a1a;
 }
 
-.edit-modal-body {
+.modal-body {
+  padding: 24px;
   flex: 1;
-  padding: 20px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
-.edit-textarea {
+.modal-textarea {
   width: 100%;
-  height: 100%;
-  padding: 16px;
-  border: 1px solid #dee2e6;
+  min-height: 300px;
+  padding: 12px;
+  border: 2px solid #e9ecef;
   border-radius: 12px;
   font-family: inherit;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-wrap: break-word;
   line-height: 1.6;
-  resize: none;
+}
+
+.modal-textarea:focus {
   outline: none;
-  transition: border-color 0.2s;
-  background: #fafbfc;
-}
-
-.edit-textarea:focus {
   border-color: #4a6cf7;
-  background: white;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
 }
 
-.edit-modal-footer {
+.modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-top: 1px solid #e9ecef;
 }
 
 .cancel-btn,
 .save-btn {
-  padding: 10px 20px;
+  padding: 8px 20px;
   border-radius: 8px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  border: none;
 }
 
 .cancel-btn {
-  background: #f8f9fa;
+  background: white;
   border: 1px solid #dee2e6;
   color: #495057;
 }
 
 .cancel-btn:hover {
-  background: #e9ecef;
+  background: #f8f9fa;
+  border-color: #adb5bd;
 }
 
 .save-btn {
   background: #4a6cf7;
+  border: none;
   color: white;
 }
 
 .save-btn:hover {
-  background: #3a5ce8;
+  background: #3a5ce0;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(74, 108, 247, 0.3);
+  box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
 }
 
 @media (max-width: 768px) {
-  .edit-modal {
+  .modal-container {
     width: 95%;
-    height: 85vh;
   }
   
-  .edit-modal-header {
-    padding: 12px 16px;
+  .modal-body {
+    padding: 16px;
   }
   
-  .edit-modal-body {
-    padding: 12px;
-  }
-  
-  .edit-modal-footer {
-    padding: 12px 16px;
-  }
-  
-  .cancel-btn,
-  .save-btn {
-    padding: 8px 16px;
+  .modal-textarea {
+    min-height: 200px;
   }
 }
 </style>

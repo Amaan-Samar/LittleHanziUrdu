@@ -4,6 +4,7 @@
     <div class="app-header">
       <div class="logo-section">
         <h1 class="logo">LittleHanzi</h1>
+        <span class="urdu-subtitle">اردو</span>
       </div>
       <button class="settings-icon-btn" @click="openSettingsModal" title="Settings">
         <Settings :size="24" />
@@ -12,50 +13,52 @@
 
     <div class="main-content">
       <div class="input-display-row">
-        <!-- Chinese Text Input -->
-        <div class="text-section" :style="{fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
+        <!-- Urdu Text Input -->
+        <div class="text-section" :style="{fontSize: `${fontSize}px` }">
           <div class="input-wrapper">
             <textarea 
               v-model="inputText" 
-              placeholder="Enter Chinese text here..." 
-              class="text-input w-full" 
+              placeholder="یہاں اردو متن درج کریں..." 
+              class="text-input w-full urdu-input" 
+              dir="rtl"
               @input="adjustHeight"
-              ref="chineseTextarea"
+              ref="urduTextarea"
             ></textarea>
             <button 
               v-if="inputText.trim()" 
-              @click="openEditModal('chinese')" 
+              @click="openEditModal" 
               class="edit-btn"
               title="Edit in popup"
             >
               <EditIcon :size="16" />
             </button>
           </div>
-          <button @click="clearOrPasteText('chinese')" class="action-btn">
+          <button @click="clearOrPasteText" class="action-btn">
             {{ inputText.trim() ? 'Clear' : 'Paste' }}
           </button>
         </div>
 
-        <!-- English Translation Input -->
-        <div class="text-section" :style="{fontSize: `${fontSize}px` }">
+        <!-- English Translation Input (Optional) -->
+        <div v-if="showEnglishTranslation" class="text-section" :style="{fontSize: `${fontSize}px` }">
           <div class="input-wrapper">
             <textarea 
               v-model="englishText" 
-              placeholder="Enter English translation here..." 
+              placeholder="Enter translation here..." 
               class="text-input w-full english-input" 
+              dir="ltr"
               @input="adjustEnglishHeight"
               ref="englishTextarea"
             ></textarea>
             <button 
               v-if="englishText.trim()" 
-              @click="openEditModal('english')" 
+              @click="openEnglishEditModal" 
               class="edit-btn"
               title="Edit in popup"
             >
               <EditIcon :size="16" />
             </button>
           </div>
-          <button @click="clearOrPasteText('english')" class="action-btn">
+          <button @click="clearOrPasteEnglishText" class="action-btn">
             {{ englishText.trim() ? 'Clear' : 'Paste' }}
           </button>
         </div>
@@ -68,6 +71,7 @@
         :content="editModalContent"
         :fontSize="Number(fontSize)"
         :fontFamily="getFontFamily"
+        :isRtl="editModalType === 'urdu'"
         @close="closeEditModal"
         @save="saveEditModalContent"
       />
@@ -81,95 +85,35 @@
         @reset="resetToDefaults"
       />
 
-      <div v-if="inputText.trim() && (showEnglish || showChinese)" class="comparison-section">
+      <!-- Main Display Area -->
+      <div v-if="inputText.trim() && (showRomanization || showOriginalText || showEnglishTranslation)" class="comparison-section">
         <div class="comparison-display relative">
-          <!-- Old rendering method (paragraph by paragraph) -->
-          <template v-if="!interleaveLines">
-            <div v-for="(block, sentenceId) in comparisonData" :key="sentenceId" class="comparison-block relative">
-              
-              <!-- Render based on display order and visibility toggles -->
-              <template v-if="displayOrder === 'en-cn'">
-                <!-- English first, then Chinese -->
-                <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
-                  <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
-                    {{ englishSegments[sentenceId] }}
-                  </div>
-                </div>
-
-                <div v-if="showChinese" class="line-container">
-                  <div class="text-line relative">
-                    <div class="line-characters-and-pinyin" :style="{ fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
-                      <span v-for="(pair, pairIndex) in flattenBlockLines(block)" :key="pairIndex">
-                        <span class="character" :style="{fontWeight: '600'}">
-                          {{ showPinyin ? pair[0] : (pair[0] === ' ' && pair[1] === ' ' ? ' ' : pair[0]) }}
-                        </span>
-                        <span class="pinyin" :style="{fontSize: `${fontSize * 0.8}px`, display: showPinyin ? 'inline' : 'none'}">
-                          {{ pair[1] }}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <template v-else>
-                <!-- Chinese first, then English -->
-                <div v-if="showChinese" class="line-container">
-                  <div class="text-line relative">
-                    <div class="line-characters-and-pinyin" :style="{ fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
-                      <span v-for="(pair, pairIndex) in flattenBlockLines(block)" :key="pairIndex">
-                        <span class="character" :style="{fontWeight: '600'}">
-                          {{ showPinyin ? pair[0] : (pair[0] === ' ' && pair[1] === ' ' ? ' ' : pair[0]) }}
-                        </span>
-                        <span class="pinyin" :style="{fontSize: `${fontSize * 0.8}px`, display: showPinyin ? 'inline' : 'none'}">
-                          {{ pair[1] }}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
-                  <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
-                    {{ englishSegments[sentenceId] }}
-                  </div>
-                </div>
-              </template>
-
-            </div>
-          </template>
-
-          <!-- New interleaved rendering method -->
-          <template v-else>
-            <div v-if="interleavedDisplayData && interleavedDisplayData.length" class="interleaved-container">
-              <div v-for="(block, blockIndex) in interleavedDisplayData" :key="blockIndex" class="interleaved-block">
-                <div v-for="(line, lineIndex) in block" :key="lineIndex" 
-                     :class="['interleaved-line', line.type]"
-                     :style="{
-                       fontSize: line.type === 'chinese' ? `${fontSize}px` : `${fontSize * 0.8}px`,
-                       fontFamily: line.type === 'chinese' ? getFontFamily : '-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif'
-                     }">
-                  <span v-if="line.type === 'chinese'" v-html="line.content"></span>
-                  <span v-else>{{ line.content }}</span>
-                </div>
+          <!-- Interleaved rendering only -->
+          <div v-if="interleavedDisplayData && interleavedDisplayData.length" class="interleaved-container">
+            <div v-for="(block, blockIndex) in interleavedDisplayData" :key="blockIndex" class="interleaved-block">
+              <div v-for="(line, lineIndex) in block" :key="lineIndex" 
+                   :class="['interleaved-line', line.type]"
+                   :dir="line.type === 'urdu' ? 'rtl' : 'ltr'"
+                   :style="{
+                     fontSize: line.type === 'urdu' ? `${fontSize}px` : `${fontSize * 0.8}px`,
+                     fontFamily: line.type === 'urdu' ? getFontFamily : '-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif'
+                   }">
+                <span v-if="line.type === 'urdu'" v-html="line.content"></span>
+                <span v-else>{{ line.content }}</span>
               </div>
             </div>
-          </template>
+          </div>
 
-          <div 
-            class="scroll-spacer"
-            :style="{
-              minHeight: `calc(66vh - ${fontSize * 2}px)`
-            }"
-          ></div>
+          <div class="scroll-spacer" :style="{ minHeight: `calc(66vh - ${fontSize * 2}px)` }"></div>
         </div>
       </div>
 
-      <!-- Empty state when both English and Chinese are hidden -->
-      <div v-else-if="inputText.trim() && !showEnglish && !showChinese" class="empty-state">
-        <p>Both English and Chinese paragraphs are hidden. Enable them in settings.</p>
+      <!-- Empty state -->
+      <div v-else-if="inputText.trim() && !showRomanization && !showOriginalText && !showEnglishTranslation" class="empty-state">
+        <p>All display options are hidden. Enable them in settings.</p>
       </div>
 
+      <!-- Quick Actions -->
       <div v-if="inputText.trim()" class="quick-actions">
         <button @click="requestClearAll" class="clear-all-btn">
           Clear All Text
@@ -181,7 +125,7 @@
     <ConfirmModal
       :isOpen="showConfirmModal"
       title="Clear All Text"
-      message="Are you sure you want to clear all Chinese and English text? This action cannot be undone."
+      message="Are you sure you want to clear all Urdu and English text? This action cannot be undone."
       confirmText="Yes, Clear All"
       cancelText="Cancel"
       @confirm="confirmClearAll"
@@ -196,9 +140,7 @@ import EditModal from './EditModal.vue';
 import ConfirmModal from './ConfirmModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import { ref, computed, watch, nextTick } from 'vue';
-import { pinyin } from 'pinyin-pro';
-import { useSettings } from '../composables/useSettings';
-
+import { getWordRomanizationPairs, splitUrduWords } from '../utils/urduRomanizer.js';
 
 export default {
   components: {
@@ -208,618 +150,437 @@ export default {
     EditIcon,
     Settings,
   },
-  name: 'FontConverter',
+  name: 'UrduConverter',
   setup() {
-    const {
-      fontSize,
-      selectedFont,
-      showPinyin,
-      showEnglish,
-      showChinese,
-      displayOrder,
-      interleaveLines,
-      resetSettings
-    } = useSettings()
-    
+    // State
     const inputText = ref('');
     const englishText = ref('');
-    const chineseTextarea = ref(null);
-    const showConfirmModal = ref(false);
+    const urduTextarea = ref(null);
     const englishTextarea = ref(null);
+    const showConfirmModal = ref(false);
     const isSettingsModalOpen = ref(false);
-    const containerWidth = ref(800); // Default container width
+    const isEditModalOpen = ref(false);
+    const editModalType = ref('urdu');
+    const containerWidth = ref(800);
 
-    const isEditModalOpen = ref(false)
-    const editModalType = ref('chinese')
-    const editModalTitle = computed(() => editModalType.value === 'chinese' ? 'Chinese Text' : 'English Translation')
-    const editModalContent = computed(() => editModalType.value === 'chinese' ? inputText.value : englishText.value)
+    // Settings
+    const fontSize = ref(16);
+    const selectedFont = ref('NotoNastaliqUrdu');
+    const showRomanization = ref(true);
+    const showOriginalText = ref(true);
+    const showEnglishTranslation = ref(true);
+    const displayOrder = ref('en-ur');
+    const romanizationPosition = ref('left');
+
+    // Computed
+    const editModalTitle = computed(() => editModalType.value === 'urdu' ? 'Urdu Text' : 'English Translation');
+    const editModalContent = computed(() => editModalType.value === 'urdu' ? inputText.value : englishText.value);
+
+    const getFontFamily = computed(() => {
+      const fonts = {
+        NotoNastaliqUrdu: "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Alvi Nastaleeq', 'Urdu Typesetting', serif",
+        JameelNoori: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif",
+        NafeesWeb: "'Nafees Web', 'Noto Nastaliq Urdu', serif",
+        Arial: "Arial, 'Noto Nastaliq Urdu', sans-serif"
+      };
+      return fonts[selectedFont.value] || fonts.NotoNastaliqUrdu;
+    });
 
     // Settings object for modal
     const settings = computed(() => ({
       fontSize: Number(fontSize.value),
       selectedFont: selectedFont.value,
-      showPinyin: showPinyin.value,
-      showEnglish: showEnglish.value,
-      showChinese: showChinese.value,
+      showRomanization: showRomanization.value,
+      showOriginalText: showOriginalText.value,
+      showEnglishTranslation: showEnglishTranslation.value,
       displayOrder: displayOrder.value,
-      interleaveLines: interleaveLines.value
-    }))
+      interleaveLines: true, // Always true now
+      romanizationPosition: romanizationPosition.value
+    }));
 
-    // Update container width on resize
-    const updateContainerWidth = () => {
-      const container = document.querySelector('.comparison-display')
-      if (container) {
-        containerWidth.value = container.clientWidth - 32 // Subtract padding
-      }
-    }
-
-    // Split text into lines based on container width
-    const splitTextIntoLines = (text, width, fontSz, fontFamily, isChinese = true) => {
-      if (!text || !width || width <= 0) return [text]
+    // Split text into lines for interleaved mode
+    const splitTextIntoLines = (text, width, fontSz, fontFamily, isUrdu = false) => {
+      if (!text || !width || width <= 0) return [text];
       
-      // Create a hidden measuring element
-      const measureDiv = document.createElement('div')
-      measureDiv.style.position = 'absolute'
-      measureDiv.style.visibility = 'hidden'
-      measureDiv.style.top = '-9999px'
-      measureDiv.style.left = '-9999px'
-      measureDiv.style.width = `${width}px`
-      measureDiv.style.fontSize = `${fontSz}px`
-      measureDiv.style.fontFamily = fontFamily
-      measureDiv.style.lineHeight = '1.5'
-      measureDiv.style.whiteSpace = 'pre-wrap'
-      measureDiv.style.wordWrap = 'break-word'
-      measureDiv.style.wordBreak = 'break-word'
-      measureDiv.style.padding = '0'
-      measureDiv.style.margin = '0'
-      document.body.appendChild(measureDiv)
+      const measureDiv = document.createElement('div');
+      measureDiv.style.position = 'absolute';
+      measureDiv.style.visibility = 'hidden';
+      measureDiv.style.top = '-9999px';
+      measureDiv.style.left = '-9999px';
+      measureDiv.style.width = `${width}px`;
+      measureDiv.style.fontSize = `${fontSz}px`;
+      measureDiv.style.fontFamily = fontFamily;
+      measureDiv.style.lineHeight = '1.5';
+      measureDiv.style.whiteSpace = 'pre-wrap';
+      measureDiv.style.wordWrap = 'break-word';
+      measureDiv.style.wordBreak = 'break-word';
+      measureDiv.style.padding = '0';
+      measureDiv.style.margin = '0';
+      document.body.appendChild(measureDiv);
       
-      const lines = []
-      let currentLine = ''
+      const lines = [];
+      let currentLine = '';
       
-      // For Chinese text, we need to preserve the character+pinyin pairs
-      let chars = []
-      if (isChinese) {
-        // For Chinese, we need to split by character+pinyin pairs
-        // The text comes as "司sī 美měi 的de" format
-        chars = text.split(/(\S+?[\u4e00-\u9fa5][a-z]+\s+|\S+?[\u4e00-\u9fa5][a-z]+$|\S+)/)
+      let segments = [];
+      if (isUrdu) {
+        segments = splitUrduWords(text);
       } else {
-        // For English, split by spaces and punctuation
-        chars = text.split(/(\S+\s+|\S+$)/)
+        segments = text.split(/(\s+)/);
       }
       
-      chars = chars.filter(c => c && c.trim())
-      
-      for (const char of chars) {
-        const testLine = currentLine + char
-        measureDiv.textContent = testLine
+      for (const segment of segments) {
+        const testLine = currentLine + segment;
+        measureDiv.textContent = testLine;
         
-        // Check if adding this character exceeds line height
-        if (measureDiv.scrollHeight > 30) { // Height threshold (approx 1 line)
+        if (measureDiv.scrollHeight > 35) {
           if (currentLine.trim()) {
-            lines.push(currentLine.trim())
+            lines.push(currentLine.trim());
           }
-          currentLine = char
+          currentLine = segment;
         } else {
-          currentLine = testLine
+          currentLine = testLine;
         }
       }
       
       if (currentLine.trim()) {
-        lines.push(currentLine.trim())
+        lines.push(currentLine.trim());
       }
       
-      document.body.removeChild(measureDiv)
-      return lines
-    }
+      document.body.removeChild(measureDiv);
+      return lines;
+    };
 
-    // Convert Chinese text to HTML with pinyin
-    const getChineseWithPinyinHTML = (chineseText) => {
-      if (!chineseText) return ''
-      if (!showPinyin.value) return chineseText
+    // Process paragraphs from input text
+    const processParagraphs = () => {
+      if (!inputText.value.trim()) return [];
       
-      const pairs = getPinyinAndChar(chineseText)
-      return pairs.map(pair => {
-        if (pair[1]) {
-          return `<span class="chinese-with-pinyin">${pair[0]}<span class="inline-pinyin">${pair[1]}</span></span>`
+      // Split into paragraphs
+      let paragraphs = inputText.value.split(/\n\n+/);
+      if (paragraphs.length === 1) {
+        paragraphs = inputText.value.split(/\n+/);
+      }
+      paragraphs = paragraphs.filter(p => p.trim());
+      
+      const englishParagraphs = englishText.value ? 
+        englishText.value.split(/\n\n+/).filter(p => p.trim()) : [];
+      
+      return paragraphs.map((paragraph, index) => ({
+        urdu: paragraph,
+        english: englishParagraphs[index] || ''
+      }));
+    };
+
+    // Generate HTML for Urdu with inline romanization
+    const getUrduWithRomanizationHTML = (paragraph) => {
+      if (!paragraph) return '';
+      const pairs = getWordRomanizationPairs(paragraph);
+      return pairs.map(item => {
+        if (item.isSpace) return ' ';
+        if (item.romanized && showRomanization.value) {
+          return `<span class="urdu-with-romanization">${item.word}<span class="inline-romanization">${item.romanized}</span></span>`;
         }
-        return pair[0]
-      }).join(' ')
-    }
-
-    // Get Chinese text as plain string with pinyin
-    const getChineseWithPinyinText = (chineseText) => {
-      if (!chineseText) return ''
-      if (!showPinyin.value) return chineseText
-      
-      const pairs = getPinyinAndChar(chineseText)
-      return pairs.map(pair => pair[0] + (pair[1] || '')).join(' ')
-    }
+        return item.word;
+      }).join('');
+    };
 
     // Interleaved display data
     const interleavedDisplayData = computed(() => {
-      if (!interleaveLines.value || !inputText.value.trim()) return null
+      if (!inputText.value.trim()) return null;
       
-      const chineseParagraphs = inputText.value.split(/\n\n/).filter(p => p.trim())
-      const englishParagraphs = englishText.value.split(/\n\n/).filter(p => p.trim())
+      const blocks = processParagraphs();
       
-      // Update container width
-      nextTick(() => updateContainerWidth())
+      nextTick(() => updateContainerWidth());
       
-      const interleavedBlocks = []
+      const interleavedBlocks = [];
       
-      for (let i = 0; i < chineseParagraphs.length; i++) {
-        const chinesePara = chineseParagraphs[i]
-        const englishPara = englishParagraphs[i] || ''
+      for (const block of blocks) {
+        const interleaved = [];
         
-        if (!showChinese.value && !showEnglish.value) continue
+        let urduLines = [];
+        let englishLines = [];
         
-        // Get Chinese text with pinyin
-        const chineseText = getChineseWithPinyinText(chinesePara)
-        
-        // Split into lines based on container width
-        let chineseLines = []
-        let englishLines = []
-        
-        if (showChinese.value && chineseText) {
-          chineseLines = splitTextIntoLines(
-            chineseText, 
-            containerWidth.value, 
-            fontSize.value, 
+        if (showOriginalText.value && block.urdu) {
+          const plainUrdu = block.urdu;
+          urduLines = splitTextIntoLines(
+            plainUrdu,
+            containerWidth.value,
+            fontSize.value,
             getFontFamily.value,
             true
-          )
+          );
         }
         
-        if (showEnglish.value && englishPara) {
+        if (showEnglishTranslation.value && block.english) {
           englishLines = splitTextIntoLines(
-            englishPara,
+            block.english,
             containerWidth.value,
             fontSize.value * 0.8,
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             false
-          )
+          );
         }
         
-        // Interleave lines based on display order
-        const interleaved = []
-        const maxLines = Math.max(chineseLines.length, englishLines.length)
+        const maxLines = Math.max(urduLines.length, englishLines.length);
         
-        if (displayOrder.value === 'en-cn') {
-          // English first
-          for (let lineIndex = 0; lineIndex < maxLines; lineIndex++) {
-            if (lineIndex < englishLines.length && showEnglish.value) {
-              interleaved.push({
-                type: 'english',
-                content: englishLines[lineIndex]
-              })
+        if (displayOrder.value === 'en-ur') {
+          for (let i = 0; i < maxLines; i++) {
+            if (i < englishLines.length && showEnglishTranslation.value) {
+              interleaved.push({ type: 'english', content: englishLines[i] });
             }
-            if (lineIndex < chineseLines.length && showChinese.value) {
-              // For Chinese, we need to preserve the pinyin formatting
-              const originalChinesePara = getChineseWithPinyinHTML(chinesePara)
-              // This is simplified - we'd need to map lines back to original
-              interleaved.push({
-                type: 'chinese',
-                content: chineseLines[lineIndex]
-              })
+            if (i < urduLines.length && showOriginalText.value) {
+              const lineHtml = getUrduWithRomanizationHTML(urduLines[i]);
+              interleaved.push({ type: 'urdu', content: lineHtml });
             }
           }
         } else {
-          // Chinese first
-          for (let lineIndex = 0; lineIndex < maxLines; lineIndex++) {
-            if (lineIndex < chineseLines.length && showChinese.value) {
-              interleaved.push({
-                type: 'chinese',
-                content: chineseLines[lineIndex]
-              })
+          for (let i = 0; i < maxLines; i++) {
+            if (i < urduLines.length && showOriginalText.value) {
+              const lineHtml = getUrduWithRomanizationHTML(urduLines[i]);
+              interleaved.push({ type: 'urdu', content: lineHtml });
             }
-            if (lineIndex < englishLines.length && showEnglish.value) {
-              interleaved.push({
-                type: 'english',
-                content: englishLines[lineIndex]
-              })
+            if (i < englishLines.length && showEnglishTranslation.value) {
+              interleaved.push({ type: 'english', content: englishLines[i] });
             }
           }
         }
         
         if (interleaved.length) {
-          interleavedBlocks.push(interleaved)
+          interleavedBlocks.push(interleaved);
         }
       }
       
-      return interleavedBlocks
-    })
-
-    const openSettingsModal = () => {
-      isSettingsModalOpen.value = true
-    }
-
-    // Request clear with confirmation
-    const requestClearAll = () => {
-      if (inputText.value.trim() || englishText.value.trim()) {
-        showConfirmModal.value = true
-      }
-    }
-
-    const confirmClearAll = () => {
-      clearText('both')
-      showConfirmModal.value = false
-    }
-
-    const cancelClearAll = () => {
-      showConfirmModal.value = false
-    }
-
-    const closeSettingsModal = () => {
-      isSettingsModalOpen.value = false
-    }
-
-    const saveSettings = (newSettings) => {
-      fontSize.value = newSettings.fontSize
-      selectedFont.value = newSettings.selectedFont
-      showPinyin.value = newSettings.showPinyin
-      showEnglish.value = newSettings.showEnglish
-      showChinese.value = newSettings.showChinese
-      displayOrder.value = newSettings.displayOrder
-      interleaveLines.value = newSettings.interleaveLines
-      closeSettingsModal()
-      // Recalculate lines when settings change
-      nextTick(() => updateContainerWidth())
-    }
-
-    const resetToDefaults = () => {
-      resetSettings()
-      closeSettingsModal()
-    }
-
-    const openEditModal = (type) => {
-      editModalType.value = type
-      isEditModalOpen.value = true
-    }
-
-    const closeEditModal = () => {
-      isEditModalOpen.value = false
-    }
-
-    const saveEditModalContent = (newContent) => {
-      if (editModalType.value === 'chinese') {
-        inputText.value = newContent
-      } else {
-        englishText.value = newContent
-      }
-      closeEditModal()
-    }
-
-    // Font configurations
-    const fonts = {
-      NotoSansSC: "'Noto Sans SC', 'Inter', sans-serif",
-      NotoSerifSC: "'Noto Serif SC', 'Georgia', serif",
-      Inter: "'Inter', 'Noto Sans SC', sans-serif",
-      Roboto: "'Roboto', 'Noto Sans SC', sans-serif",
-      Poppins: "'Poppins', 'Noto Sans SC', sans-serif",
-      ZCOOLKuaiLe: "'ZCOOL KuaiLe', cursive",
-      MaShanZheng: "'Ma Shan Zheng', cursive",
-    };
-
-    const getFontFamily = computed(() => fonts[selectedFont.value]);
-
-    const breakEnglishText = (englishText, chineseSegments) => {
-      if (!englishText.trim()) return {};
-      
-      const normalizedText = englishText
-        .replace(/\r\n/g, '\n')
-        .replace(/\n\s*\n(\s*\n)*/g, '\n\n');
-      
-      const englishParagraphs = normalizedText
-        .split(/\n\n/)
-        .map(para => para.trim())
-        .filter(para => para);
-      
-      const result = {};
-      const chineseSegmentKeys = chineseSegments ? Object.keys(chineseSegments) : [];
-      
-      englishParagraphs.forEach((paragraph, index) => {
-        if (index < chineseSegmentKeys.length) {
-          result[chineseSegmentKeys[index]] = paragraph;
-        }
-      });
-      
-      return result;
-    };
-
-    const englishSegments = computed(() => {
-      return breakEnglishText(englishText.value, comparisonData.value);
+      return interleavedBlocks;
     });
 
-    const pasteFromClipboard = async (target = null) => {
+    // Update container width
+    const updateContainerWidth = () => {
+      const container = document.querySelector('.comparison-display');
+      if (container) {
+        containerWidth.value = container.clientWidth - 32;
+      }
+    };
+
+    // Text operations
+    const pasteFromClipboard = async () => {
       try {
         const clipboardText = await navigator.clipboard.readText();
-        const targetType = target || 'chinese';
-        
-        if (targetType === 'chinese') {
-          inputText.value = clipboardText;
-        } else {
-          englishText.value = clipboardText;
-        }
+        inputText.value = clipboardText;
       } catch (error) {
         console.error('Failed to read clipboard contents: ', error);
       }
     };
 
-    const clearText = (type = 'both') => {
-      if (type === 'chinese' || type === 'both') {
-        inputText.value = '';
-        if (chineseTextarea.value) {
-          setTimeout(() => {
-            chineseTextarea.value.style.height = 'auto';
-            chineseTextarea.value.style.height = '40px';
-          }, 0);
-        }
-      }
-      
-      if (type === 'english' || type === 'both') {
-        englishText.value = '';
-        if (englishTextarea.value) {
-          setTimeout(() => {
-            englishTextarea.value.style.height = 'auto';
-            englishTextarea.value.style.height = '40px';
-          }, 0);
-        }
-      }
-    };
-
-    const clearOrPasteText = (type) => {
-      const text = type === 'chinese' ? inputText.value : englishText.value;
-      
-      if (text.trim()) {
-        clearText(type);
-      } else {
-        pasteFromClipboard(type);
-      }
-    };
-
-    const flattenBlockLines = (blockObject) => {
-      const flattenedPairs = [];
-      
-      if (!blockObject || !blockObject.lines) {
-        return flattenedPairs;
-      }
-      
-      Object.values(blockObject.lines).forEach(line => {
-        if (line.textAndPinyin && Array.isArray(line.textAndPinyin)) {
-          line.textAndPinyin.forEach(pair => {
-            flattenedPairs.push(pair);
-          });
-        }
-      });
-      return flattenedPairs;
-    };
-    
-    const comparisonData = computed(() => {
-      if (!inputText.value) return {};
-      
-      const normalizedText = inputText.value
-        .replace(/\r\n/g, '\n')
-        .replace(/\n\s*\n(\s*\n)*/g, '\n\n');
-      
-      const chineseParagraphs = normalizedText
-        .split(/\n\n/)
-        .map(para => para.trim())
-        .filter(para => para);
-      
-      const result = {};
-      
-      chineseParagraphs.forEach((paragraph, index) => {
-        const sentenceId = index;
-        result[sentenceId] = {
-          lines: {},
-          sentencePinyin: getPinyinForSentence(paragraph)
-        };
-        
-        result[sentenceId].lines[0] = {
-          text: paragraph,
-          pinyin: getPinyinForSentence(paragraph),
-          textAndPinyin: getPinyinAndChar(paragraph)
-        };
-      });
-      
-      return result;
-    });
-
-    const getPinyinForSentence = sentence => {
-      if (!sentence) return '';
-      return pinyin(sentence);
-    };
-
-    function preprocessing(sentence) {
-        const preprocessed_sentence = [];
-        let current_segment = '';
-        let current_type = null;
-
-        const isChinese = char => /[\u4e00-\u9fa5]/.test(char);
-        const isEnglish = char => /[a-zA-Z0-9]/.test(char);
-        const isSpace = char => /\s/.test(char);
-        const isSymbol = char => /[。，？%#@*&^$!-><()_.""''=[\]:《》【】（）！。，、：;'"『』「」]/.test(char);
-
-        for (const char of sentence) {
-            if (isChinese(char)) {
-                if (current_type && current_type !== 'chinese') {
-                    preprocessed_sentence.push([current_segment]);
-                    current_segment = '';
-                }
-                if (current_segment) {
-                    preprocessed_sentence.push([current_segment]);
-                    current_segment = '';
-                }
-                preprocessed_sentence.push([char]);
-                current_type = 'chinese';
-            } 
-            else if (isEnglish(char) || isSpace(char)) {
-                if (current_type === 'symbol') {
-                    preprocessed_sentence.push([current_segment]);
-                    current_segment = '';
-                }
-                current_segment += char;
-                current_type = 'english';
-            }
-            else if (isSymbol(char)) {
-                if (current_type === 'english') {
-                    preprocessed_sentence.push([current_segment]);
-                    current_segment = '';
-                }
-                if (current_segment) {
-                    preprocessed_sentence.push([current_segment]);
-                    current_segment = '';
-                }
-                preprocessed_sentence.push([char]);
-                current_type = 'symbol';
-            }
-        }
-
-        if (current_segment) {
-            preprocessed_sentence.push([current_segment]);
-        }
-
-        return preprocessed_sentence;
-    }
-
-    function getPinyin(sentence) {
-        const pinyinObj = [];
-        const preprocessedSentence = preprocessing(sentence);
-        
-        const chineseOnly = sentence.split('').filter(c => /[\u4e00-\u9fa5]/.test(c)).join('');
-        const chinesePinyin = pinyin(chineseOnly);
-        
-        const pinyinParts = chinesePinyin.split(' ');
-        
-        let pinyinIndex = 0;
-        
-        for (const [text] of preprocessedSentence) {
-            if (/[\u4e00-\u9fa5]/.test(text)) {
-                pinyinObj.push([text, pinyinParts[pinyinIndex] || '']);
-                pinyinIndex++;
-            } else {
-                pinyinObj.push([text, '']);
-            }
-        }
-        
-        return pinyinObj;
-    }
-
-    const getPinyinAndChar = sentence => {
-      if (!sentence) return [];
-      
-      const chars = preprocessing(sentence);
-      if (!showPinyin.value) return chars.map(char => [char[0], '']);
-
+    const pasteEnglishFromClipboard = async () => {
       try {
-        return getPinyin(sentence);
+        const clipboardText = await navigator.clipboard.readText();
+        englishText.value = clipboardText;
       } catch (error) {
-        console.error('Error processing pinyin:', error);
-        return chars.map(char => [char, '']);
+        console.error('Failed to read clipboard contents: ', error);
       }
     };
 
-    const adjustHeight = () => {
-      if (chineseTextarea.value) {
-        chineseTextarea.value.style.height = 'auto';
+    const clearText = () => {
+      inputText.value = '';
+      if (urduTextarea.value) {
+        setTimeout(() => {
+          urduTextarea.value.style.height = 'auto';
+          urduTextarea.value.style.height = '70px';
+        }, 0);
+      }
+    };
 
-        if (!inputText.value.trim()) {
-          chineseTextarea.value.style.height = '40px';
-        } else {
-          chineseTextarea.value.style.height = `${chineseTextarea.value.scrollHeight}px`;
-        }
+    const clearEnglishText = () => {
+      englishText.value = '';
+      if (englishTextarea.value) {
+        setTimeout(() => {
+          englishTextarea.value.style.height = 'auto';
+          englishTextarea.value.style.height = '70px';
+        }, 0);
+      }
+    };
+
+    const clearOrPasteText = () => {
+      if (inputText.value.trim()) {
+        clearText();
+      } else {
+        pasteFromClipboard();
+      }
+    };
+
+    const clearOrPasteEnglishText = () => {
+      if (englishText.value.trim()) {
+        clearEnglishText();
+      } else {
+        pasteEnglishFromClipboard();
+      }
+    };
+
+    const requestClearAll = () => {
+      if (inputText.value.trim() || englishText.value.trim()) {
+        showConfirmModal.value = true;
+      }
+    };
+
+    const confirmClearAll = () => {
+      clearText();
+      clearEnglishText();
+      showConfirmModal.value = false;
+    };
+
+    const cancelClearAll = () => {
+      showConfirmModal.value = false;
+    };
+
+    // Adjust textarea height
+    const adjustHeight = () => {
+      if (urduTextarea.value) {
+        urduTextarea.value.style.height = 'auto';
+        urduTextarea.value.style.height = `${urduTextarea.value.scrollHeight}px`;
       }
     };
 
     const adjustEnglishHeight = () => {
       if (englishTextarea.value) {
         englishTextarea.value.style.height = 'auto';
-
-        if (!englishText.value.trim()) {
-          englishTextarea.value.style.height = '40px';
-        } else {
-          englishTextarea.value.style.height = `${englishTextarea.value.scrollHeight}px`;
-        }
+        englishTextarea.value.style.height = `${englishTextarea.value.scrollHeight}px`;
       }
     };
 
-    // Watch for window resize to recalculate lines
-    watch([interleaveLines, inputText, englishText, fontSize, showPinyin], () => {
-      if (interleaveLines.value) {
-        nextTick(() => updateContainerWidth())
+    // Modal operations
+    const openSettingsModal = () => {
+      isSettingsModalOpen.value = true;
+    };
+
+    const closeSettingsModal = () => {
+      isSettingsModalOpen.value = false;
+    };
+
+    const saveSettings = (newSettings) => {
+      fontSize.value = newSettings.fontSize;
+      selectedFont.value = newSettings.selectedFont;
+      showRomanization.value = newSettings.showRomanization;
+      showOriginalText.value = newSettings.showOriginalText;
+      showEnglishTranslation.value = newSettings.showEnglishTranslation;
+      displayOrder.value = newSettings.displayOrder;
+      romanizationPosition.value = newSettings.romanizationPosition;
+      closeSettingsModal();
+      nextTick(() => updateContainerWidth());
+    };
+
+    const resetToDefaults = () => {
+      fontSize.value = 18;
+      selectedFont.value = 'NotoNastaliqUrdu';
+      showRomanization.value = true;
+      showOriginalText.value = true;
+      showEnglishTranslation.value = true;
+      displayOrder.value = 'en-ur';
+      romanizationPosition.value = 'left';
+      closeSettingsModal();
+    };
+
+    const openEditModal = () => {
+      editModalType.value = 'urdu';
+      isEditModalOpen.value = true;
+    };
+
+    const openEnglishEditModal = () => {
+      editModalType.value = 'english';
+      isEditModalOpen.value = true;
+    };
+
+    const closeEditModal = () => {
+      isEditModalOpen.value = false;
+    };
+
+    const saveEditModalContent = (newContent) => {
+      if (editModalType.value === 'urdu') {
+        inputText.value = newContent;
+      } else {
+        englishText.value = newContent;
       }
-    })
+      closeEditModal();
+    };
+
+    // Watch for changes
+    watch([inputText, englishText, fontSize, showRomanization, showOriginalText], () => {
+      nextTick(() => updateContainerWidth());
+    });
+
+    watch(inputText, adjustHeight);
+    watch(englishText, adjustEnglishHeight);
 
     // Set up resize observer
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', () => {
-        if (interleaveLines.value) {
-          updateContainerWidth()
-        }
-      })
+        updateContainerWidth();
+      });
     }
-
-    watch(inputText, adjustHeight);
-    watch(englishText, adjustEnglishHeight);
 
     return {
       // Data
       inputText,
       englishText,
-      selectedFont,
       fontSize,
-      showPinyin,
-      showEnglish,
-      showChinese,
+      selectedFont,
+      showRomanization,
+      showOriginalText,
+      showEnglishTranslation,
       displayOrder,
-      interleaveLines,
       
       // Computed
       getFontFamily,
-      comparisonData,
-      englishSegments,
       settings,
       interleavedDisplayData,
+      editModalTitle,
+      editModalContent,
+      
+      // Refs
+      urduTextarea,
+      englishTextarea,
+      
+      // Modal states
+      isEditModalOpen,
+      isSettingsModalOpen,
+      showConfirmModal,
+      editModalType,
       
       // Methods
       clearOrPasteText,
-      clearAllText: clearText,
-      flattenBlockLines,
+      clearOrPasteEnglishText,
+      requestClearAll,
+      confirmClearAll,
+      cancelClearAll,
       adjustHeight,
       adjustEnglishHeight,
-      
-      // Refs
-      chineseTextarea,
-      englishTextarea,
-      
-      // Modal related
-      EditIcon,
-      Settings,
-      isEditModalOpen,
-      editModalTitle,
-      editModalContent,
-      openEditModal,
-      closeEditModal,
-      saveEditModalContent,
-      
-      // Settings modal
-      isSettingsModalOpen,
       openSettingsModal,
       closeSettingsModal,
       saveSettings,
       resetToDefaults,
-
-      showConfirmModal,
-      requestClearAll,
-      confirmClearAll,
-      cancelClearAll,
+      openEditModal,
+      openEnglishEditModal,
+      closeEditModal,
+      saveEditModalContent,
+      romanizationPosition,
+      
+      // Icons
+      EditIcon,
+      Settings,
     };
   },
 };
 </script>
 
 <style scoped>
+/* Keep all your existing styles, just remove any unused ones */
+/* The styles remain the same as they already support both modes */
+
+/* Note: You can remove the .comparison-block, .urdu-text-container, 
+   .english-translation-box styles if they're not used elsewhere, 
+   but they don't hurt to keep */
+
+/* All other styles remain unchanged */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+
 .app-header {
   position: sticky;
   top: 0;
@@ -836,7 +597,8 @@ export default {
 
 .logo-section {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .logo {
@@ -847,6 +609,12 @@ export default {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
+}
+
+.urdu-subtitle {
+  font-size: 18px;
+  color: #4a6cf7;
+  font-family: 'Noto Nastaliq Urdu', serif;
 }
 
 .settings-icon-btn {
@@ -912,6 +680,16 @@ export default {
   box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
 }
 
+.urdu-input {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
+  font-size: 16px;
+}
+
+.english-input {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-color: #5dade2 !important;
+}
+
 .action-btn {
   padding: 8px 20px;
   margin-top: 8px;
@@ -958,13 +736,11 @@ export default {
 .quick-actions {
   max-width: 1200px;
   margin: 20px auto;
-  padding: 0 1rem;
   text-align: center;
 }
 
 .clear-all-btn {
   padding: 8px 20px;
-  font-size: 13px;
   font-weight: 600;
   background: #fee2e2;
   border: 1px solid #fecaca;
@@ -979,59 +755,11 @@ export default {
   transform: translateY(-1px);
 }
 
-/* Updated text wrapping styles */
-.line-characters-and-pinyin {
-  text-wrap: wrap;
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-  line-height: 1.8;
-  gap: 2px;
-}
-
-.line-characters-and-pinyin > span {
-  display: inline;
-  white-space: normal;
-  word-break: keep-all;
-}
-
-.english-translation-box {
-  background-color: rgba(255, 255, 255, 0.3);
-  margin-bottom: 8px;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
-.english-text {
-  color: #2c3e50;
-  line-height: 1.6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.english-input {
-  border-color: #5dade2 !important;
-  outline-color: #5dade2 !important;
-}
-
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: #868e96;
   font-style: italic;
-}
-
-.relative {
-  position: relative;
 }
 
 .converter-wrapper {
@@ -1053,57 +781,6 @@ export default {
   overflow-x: hidden;
 }
 
-.comparison-block {
-  margin-bottom: 24px;
-  width: 100%;
-  overflow-x: hidden;
-}
-
-.line-container {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  overflow-x: auto;
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-.text-line {
-  display: block;
-  word-wrap: break-word;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
-.character {
-  display: inline;
-  margin-right: 2px;
-  font-weight: normal;
-  color: #1a1a1a;
-  white-space: normal;
-  word-break: keep-all;
-  line-height: 1.5;
-}
-
-.pinyin {
-  display: inline;
-  margin-right: 4px;
-  font-size: 0.65em;
-  color: #9ca3af;
-  font-weight: 400;
-  letter-spacing: 0.3px;
-  white-space: normal;
-  word-break: keep-all;
-  transition: color 0.2s ease;
-}
-
-.pinyin:hover {
-  color: #6b7280;
-}
-
 /* Interleaved mode styles */
 .interleaved-container {
   width: 100%;
@@ -1118,39 +795,44 @@ export default {
 }
 
 .interleaved-line {
-  padding: 6px 0;
+  padding: 8px 0;
   line-height: 1.5;
   word-wrap: break-word;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.interleaved-line.chinese {
+.interleaved-line.urdu {
   font-weight: 500;
   color: #1a1a1a;
 }
 
 .interleaved-line.english {
-  color: #4a6cf7;
-  /* margin-bottom: 4px; */
-  /* border-left: 3px solid #4a6cf7; */
-  /* padding-left: 12px; */
+  color: #5dade2;
 }
 
-/* Inline pinyin styling for interleaved mode */
-.chinese-with-pinyin {
+/* Inline romanization styling for interleaved mode */
+.urdu-with-romanization {
   display: inline-block;
-  margin-right: 4px;
+  text-align: center;
 }
 
-.inline-pinyin {
+.inline-romanization {
+  display: block;
   font-size: 0.65em;
-  color: #9ca3af;
-  margin-left: 1px;
+  color: #4a6cf7;
+  margin-top: 2px;
   font-weight: 400;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Mobile specific fixes */
+/* RTL support */
+[dir="rtl"] {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Mobile responsive */
 @media (max-width: 768px) {
   .app-header {
     padding: 8px 16px;
@@ -1158,6 +840,10 @@ export default {
   
   .logo {
     font-size: 18px;
+  }
+  
+  .urdu-subtitle {
+    font-size: 14px;
   }
   
   .input-display-row {
@@ -1171,51 +857,11 @@ export default {
   .comparison-section {
     padding: 0 0.5rem;
   }
-  
-  .line-container {
-    padding: 12px;
-  }
-  
-  .character {
-    font-size: 0.95em;
-  }
-  
-  .pinyin {
-    font-size: 0.55em;
-    margin-left: 1px;
-    margin-right: 2px;
-  }
-  
-  .line-characters-and-pinyin {
-    gap: 1px;
-    line-height: 1.6;
-  }
-  
-  .interleaved-block {
-    padding: 12px;
-  }
-  
-  .interleaved-line.english {
-    padding-left: 8px;
-  }
 }
 
-/* For very small screens */
 @media (max-width: 480px) {
-  .character {
-    font-size: 0.9em;
-  }
-  
-  .pinyin {
-    font-size: 0.5em;
-  }
-  
-  .line-container {
-    padding: 8px;
-  }
-  
-  .english-text {
-    font-size: 0.9em;
+  .interleaved-block {
+    padding: 12px;
   }
 }
 </style>
