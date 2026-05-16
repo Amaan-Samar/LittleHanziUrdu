@@ -48,7 +48,7 @@
           </div>
         </div>
 
-        <div class="settings-group">
+        <!-- <div class="settings-group">
           <label class="settings-label">Layout</label>
           <div class="radio-group">
             <label class="radio-item">
@@ -60,7 +60,7 @@
               <span>Interleave Lines</span>
             </label>
           </div>
-        </div>
+        </div> -->
 
         <div class="settings-group">
           <label class="settings-label">Font Size: {{ localSettings.fontSize }}px</label>
@@ -85,7 +85,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="reset-btn" @click="resetSettings">Reset to Defaults</button>
+        <button class="reset-btn" >Reset to Defaults</button>
         <button class="cancel-btn" @click="closeModal">Cancel</button>
         <button class="save-btn" @click="saveSettings">Save</button>
       </div>
