@@ -16,7 +16,7 @@ export default defineConfig({
     timeout: 120000,
   },
   server: {
-    port: 3000,
+    port: 3001,
     open: true,
     host: '0.0.0.0'
   },

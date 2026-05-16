@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - master # or your default branch name
+      - master
 
 permissions:
   contents: write
@@ -18,17 +18,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # or your preferred version
+          node-version: '18'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci  # Use 'ci' for faster, more reliable installs
 
       - name: Build
         run: npm run build
 
-      - name: Deploy
+      - name: Create 404.html for Vue Router (SPA support)
+        run: cp dist/index.html dist/404.html
+
+      - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist # The folder the action will deploy from
+          folder: dist
           branch: gh-pages
-          clean: true # Automatically remove deleted files from the deployment
+          clean: true
+          clean-exclude: |
+            .nojekyll
